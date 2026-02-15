@@ -15,3 +15,8 @@ spring:
 
   flyway:
     enabled: true
+
+app:
+  jwt:
+    secret: "YjVhMmQyMzQ0YjQ4NGY5NTk5M2EwMjk0YjQ0ZGFkYTQxM2YzYTQ1M2IxM2Y3YTFkZGI4M2Q5ZmY2MDYxZg=="
+    expiration-ms: 3600000

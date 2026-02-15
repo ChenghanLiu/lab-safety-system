@@ -1,0 +1,131 @@
+package com.labsafety.system.reservation;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
+import java.util.Collection;
+
+public interface ReservationRepository extends JpaRepository<Reservation, Long> {
+
+    // =========================
+    // Conflict checks
+    // =========================
+
+    @Query("""
+            select (count(r) > 0)
+            from Reservation r
+            where r.lab.id = :labId
+              and r.status in :blockingStatuses
+              and r.startTime < :endTime
+              and r.endTime > :startTime
+            """)
+    boolean existsLabTimeConflict(
+            @Param("labId") Long labId,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime,
+            @Param("blockingStatuses") Collection<ReservationStatus> blockingStatuses
+    );
+
+    @Query("""
+            select (count(r) > 0)
+            from Reservation r
+            where r.equipment.id = :equipmentId
+              and r.status in :blockingStatuses
+              and r.startTime < :endTime
+              and r.endTime > :startTime
+            """)
+    boolean existsEquipmentTimeConflict(
+            @Param("equipmentId") Long equipmentId,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime,
+            @Param("blockingStatuses") Collection<ReservationStatus> blockingStatuses
+    );
+
+    @Query("""
+            select (count(r) > 0)
+            from Reservation r
+            where r.lab.id = :labId
+              and r.id <> :excludeId
+              and r.status in :blockingStatuses
+              and r.startTime < :endTime
+              and r.endTime > :startTime
+            """)
+    boolean existsLabTimeConflictExcludingId(
+            @Param("labId") Long labId,
+            @Param("excludeId") Long excludeId,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime,
+            @Param("blockingStatuses") Collection<ReservationStatus> blockingStatuses
+    );
+
+    @Query("""
+            select (count(r) > 0)
+            from Reservation r
+            where r.equipment.id = :equipmentId
+              and r.id <> :excludeId
+              and r.status in :blockingStatuses
+              and r.startTime < :endTime
+              and r.endTime > :startTime
+            """)
+    boolean existsEquipmentTimeConflictExcludingId(
+            @Param("equipmentId") Long equipmentId,
+            @Param("excludeId") Long excludeId,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime,
+            @Param("blockingStatuses") Collection<ReservationStatus> blockingStatuses
+    );
+
+    // =========================
+    // List queries
+    // =========================
+
+    @Query("""
+            select r
+            from Reservation r
+            where r.student.username = :username
+            order by r.createdAt desc
+            """)
+    Page<Reservation> findMyReservations(
+            @Param("username") String username,
+            Pageable pageable
+    );
+
+    @Query("""
+            select r
+            from Reservation r
+            where r.status = :status
+            order by r.createdAt asc
+            """)
+    Page<Reservation> findByStatusOrderByCreatedAtAsc(
+            @Param("status") ReservationStatus status,
+            Pageable pageable
+    );
+
+    @Query("""
+            select r
+            from Reservation r
+            where (:status is null or r.status = :status)
+              and (:labId is null or r.lab.id = :labId)
+              and (:equipmentId is null or r.equipment.id = :equipmentId)
+              and (:studentUsername is null or r.student.username = :studentUsername)
+            order by r.createdAt desc
+            """)
+    Page<Reservation> adminSearch(
+            @Param("status") ReservationStatus status,
+            @Param("labId") Long labId,
+            @Param("equipmentId") Long equipmentId,
+            @Param("studentUsername") String studentUsername,
+            Pageable pageable
+    );
+
+    // =========================
+    // Stats
+    // =========================
+
+    long countByStatus(ReservationStatus status);
+}
+
