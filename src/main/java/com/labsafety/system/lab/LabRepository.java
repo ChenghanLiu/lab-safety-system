@@ -9,4 +9,5 @@ public interface LabRepository extends JpaRepository<Lab, Long> {
     Optional<Lab> findByName(String name);
 
     boolean existsByName(String name);
+
 }

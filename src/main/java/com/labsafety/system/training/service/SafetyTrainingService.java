@@ -146,8 +146,8 @@ public class SafetyTrainingService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return attemptRepository
-                .findByCourse_IdAndStudent_IdOrderByCreatedAtDesc(
-                        courseId, student.getId());
+                .findByCourseIdAndStudentIdWithCourse(courseId, student.getId());
+
     }
     public SafetyTrainingCourse createCourse(SafetyTrainingCourse course) {
 

@@ -1,7 +1,9 @@
 package com.labsafety.system.training.controller;
 
 import com.labsafety.system.training.SafetyTrainingAttempt;
+import com.labsafety.system.training.SafetyTrainingAttemptAnswer;
 import com.labsafety.system.training.SafetyTrainingCourse;
+import com.labsafety.system.training.dto.SafetyTrainingAttemptResponse;
 import com.labsafety.system.training.service.SafetyTrainingService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -61,22 +63,41 @@ public class SafetyTrainingController {
     // ===============================
     @PostMapping("/attempts/{attemptId}/submit")
     @PreAuthorize("hasRole('STUDENT')")
-    public SafetyTrainingAttempt submitAttempt(
+    public Map<String, Object> submitAttempt(
             @PathVariable Long attemptId,
-            @RequestBody Map<Long, com.labsafety.system.training.SafetyTrainingAttemptAnswer.SelectedOption> answers) {
+            @RequestBody Map<Long, SafetyTrainingAttemptAnswer.SelectedOption> answers) {
 
-        return trainingService.submitAttempt(attemptId, answers);
+        SafetyTrainingAttempt saved = trainingService.submitAttempt(attemptId, answers);
+
+        return Map.of(
+                "attemptId", saved.getId(),
+                "score", saved.getScore(),
+                "passed", saved.getPassed(),
+                "submittedAt", saved.getSubmittedAt()
+        );
     }
 
-    // ===============================
-    // STUDENT 查看成绩
-    // ===============================
     @GetMapping("/courses/{courseId}/attempts")
     @PreAuthorize("hasRole('STUDENT')")
-    public List<SafetyTrainingAttempt> getAttempts(
+    public List<SafetyTrainingAttemptResponse> getAttempts(
             @PathVariable Long courseId,
             Authentication authentication) {
 
-        return trainingService.getStudentAttempts(courseId, authentication.getName());
+        List<SafetyTrainingAttempt> attempts =
+                trainingService.getStudentAttempts(courseId, authentication.getName());
+
+        return attempts.stream()
+                .map(a -> new SafetyTrainingAttemptResponse(
+                        a.getId(),
+                        a.getCourse().getId(),
+                        a.getCourse().getTitle(),
+                        a.getStartedAt(),
+                        a.getSubmittedAt(),
+                        a.getScore(),
+                        a.getPassed(),
+                        a.getCreatedAt()
+                ))
+                .toList();
     }
+
 }

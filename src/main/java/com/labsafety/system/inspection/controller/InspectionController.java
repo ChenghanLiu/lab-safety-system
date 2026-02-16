@@ -2,6 +2,9 @@ package com.labsafety.system.inspection.controller;
 
 import com.labsafety.system.inspection.InspectionPlan;
 import com.labsafety.system.inspection.InspectionRecord;
+import com.labsafety.system.inspection.dto.InspectionMapper;
+import com.labsafety.system.inspection.dto.InspectionPlanResponse;
+import com.labsafety.system.inspection.dto.InspectionRecordResponse;
 import com.labsafety.system.inspection.service.InspectionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,62 +23,61 @@ public class InspectionController {
         this.inspectionService = inspectionService;
     }
 
-    // ===============================
     // ADMIN 创建检查计划
-    // ===============================
     @PostMapping("/plans")
     @PreAuthorize("hasRole('ADMIN')")
-    public InspectionPlan createPlan(
+    public InspectionPlanResponse createPlan(
             @RequestParam Long labId,
             @RequestParam Long inspectorId,
             @RequestParam String inspectionTime,
             @RequestParam String content) {
 
-        return inspectionService.createPlan(
+        InspectionPlan plan = inspectionService.createPlan(
                 labId,
                 inspectorId,
                 LocalDateTime.parse(inspectionTime),
                 content
         );
+
+        return InspectionMapper.toPlanResponse(plan);
     }
 
-    // ===============================
     // 提交检查记录（ADMIN / TEACHER）
-    // ===============================
     @PostMapping("/plans/{planId}/record")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
-    public InspectionRecord submitRecord(
+    public InspectionRecordResponse submitRecord(
             @PathVariable Long planId,
             @RequestParam Boolean isSafe,
             @RequestParam(required = false) String problemDescription,
             @RequestParam(required = false) String suggestion) {
 
-        return inspectionService.submitRecord(
+        InspectionRecord record = inspectionService.submitRecord(
                 planId,
                 isSafe,
                 problemDescription,
                 suggestion
         );
+
+        return InspectionMapper.toRecordResponse(record);
     }
 
-    // ===============================
-    // 查看某实验室检查历史
-    // ===============================
+    // 查看某实验室检查历史（分页）
     @GetMapping("/labs/{labId}")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER','STUDENT')")
-    public Page<InspectionPlan> getPlansByLab(
+    public Page<InspectionPlanResponse> getPlansByLab(
             @PathVariable Long labId,
             Pageable pageable) {
 
-        return inspectionService.getPlansByLab(labId, pageable);
+        return inspectionService.getPlansByLab(labId, pageable)
+                .map(InspectionMapper::toPlanResponse);
     }
 
-    // ===============================
     // 查看单个检查报告
-    // ===============================
     @GetMapping("/plans/{planId}/record")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER','STUDENT')")
-    public InspectionRecord getRecord(@PathVariable Long planId) {
-        return inspectionService.getRecordByPlan(planId);
+    public InspectionRecordResponse getRecord(@PathVariable Long planId) {
+
+        InspectionRecord record = inspectionService.getRecordByPlan(planId);
+        return InspectionMapper.toRecordResponse(record);
     }
 }

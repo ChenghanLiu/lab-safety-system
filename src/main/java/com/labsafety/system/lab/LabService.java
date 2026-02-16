@@ -1,5 +1,6 @@
 package com.labsafety.system.lab;
 
+import com.labsafety.system.equipment.EquipmentRepository;
 import com.labsafety.system.lab.dto.CreateLabRequest;
 import com.labsafety.system.lab.dto.UpdateLabRequest;
 import org.springframework.stereotype.Service;
@@ -11,9 +12,11 @@ import java.util.List;
 public class LabService {
 
     private final LabRepository labRepository;
+    private final EquipmentRepository equipmentRepository;
 
-    public LabService(LabRepository labRepository) {
+    public LabService(LabRepository labRepository, EquipmentRepository equipmentRepository) {
         this.labRepository = labRepository;
+        this.equipmentRepository = equipmentRepository;
     }
 
     @Transactional(readOnly = true)
@@ -51,10 +54,13 @@ public class LabService {
 
     @Transactional
     public void deleteLab(Long id) {
-        if (!labRepository.existsById(id)) {
-            throw new IllegalArgumentException("Lab not found");
+        Lab lab = labRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Lab not found"));
+
+        if (equipmentRepository.existsByLabId(id)) {
+            throw new IllegalStateException("Cannot delete lab: equipment exists in this lab");
         }
-        labRepository.deleteById(id);
+
+        labRepository.delete(lab);
     }
 }
-
