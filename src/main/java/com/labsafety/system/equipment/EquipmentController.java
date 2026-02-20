@@ -51,8 +51,9 @@ public class EquipmentController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) Long labId,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
             @PageableDefault(size = 10) Pageable pageable
     ) {
-        return equipmentService.search(category, labId, status, pageable);
+        return equipmentService.search(category, labId, status, keyword, pageable);
     }
 }

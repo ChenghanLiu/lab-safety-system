@@ -72,10 +72,18 @@ public class EquipmentService {
         return EquipmentMapper.toResponse(equipment);
     }
 
+    /**
+     * 支持：
+     * - category
+     * - labId
+     * - status
+     * - keyword（name/model/specification/description 模糊匹配，忽略大小写）
+     */
     @Transactional(readOnly = true)
     public Page<EquipmentResponse> search(String category,
                                           Long labId,
                                           String status,
+                                          String keyword,
                                           Pageable pageable) {
 
         Specification<Equipment> specification = (root, query, cb) -> {
@@ -94,11 +102,30 @@ public class EquipmentService {
                 predicates.add(cb.equal(root.get("status"), status));
             }
 
+            if (keyword != null && !keyword.isBlank()) {
+                String kw = "%" + keyword.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("name")), kw),
+                        cb.like(cb.lower(root.get("model")), kw),
+                        cb.like(cb.lower(root.get("specification")), kw),
+                        cb.like(cb.lower(root.get("description")), kw)
+                ));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
         Page<Equipment> page = equipmentRepository.findAll(specification, pageable);
 
         return page.map(EquipmentMapper::toResponse);
+    }
+
+
+    @Transactional(readOnly = true)
+    public Page<EquipmentResponse> search(String category,
+                                          Long labId,
+                                          String status,
+                                          Pageable pageable) {
+        return search(category, labId, status, null, pageable);
     }
 }

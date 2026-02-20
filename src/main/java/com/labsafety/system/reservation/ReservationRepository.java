@@ -2,6 +2,7 @@ package com.labsafety.system.reservation;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -80,13 +81,16 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     );
 
     // =========================
-    // List queries
+    // List queries (Paging-safe)
     // =========================
 
+    // ✅ 关键：分页查询别用 fetch join，用 EntityGraph 预加载关联
+    @EntityGraph(attributePaths = {"lab", "equipment", "student", "approver"})
     @Query("""
             select r
             from Reservation r
-            where r.student.username = :username
+            join r.student s
+            where s.username = :username
             order by r.createdAt desc
             """)
     Page<Reservation> findMyReservations(
@@ -94,6 +98,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"lab", "equipment", "student", "approver"})
     @Query("""
             select r
             from Reservation r
@@ -105,13 +110,15 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"lab", "equipment", "student", "approver"})
     @Query("""
             select r
             from Reservation r
+            join r.student s
             where (:status is null or r.status = :status)
               and (:labId is null or r.lab.id = :labId)
               and (:equipmentId is null or r.equipment.id = :equipmentId)
-              and (:studentUsername is null or r.student.username = :studentUsername)
+              and (:studentUsername is null or s.username = :studentUsername)
             order by r.createdAt desc
             """)
     Page<Reservation> adminSearch(
@@ -128,4 +135,3 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     long countByStatus(ReservationStatus status);
 }
-

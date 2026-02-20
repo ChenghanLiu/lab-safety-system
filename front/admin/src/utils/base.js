@@ -9,7 +9,7 @@ const base = {
     },
     getProjectName(){
         return {
-            projectName: "基于Python的安徽新华学院人事管理系统设计与实现"
+            projectName: "智能高校实验室安全管理系统"
         } 
     }
 }

@@ -1,237 +1,182 @@
 <template>
-	<div class="home-content">
-		<!-- title -->
-		<div id="home-title" class="home-title animate__animated">
-			<div class="titles" >
-				<span>欢迎使用</span>
-				{{this.$project.projectName}}
-			</div>
-		</div>
-		<div id="news-box" class="news-box animate__animated">
-			<div class="news-title">
-				公告信息
-			</div>
-			<div class="news-list">
-				<div class="news-item" v-for="(item,index) in newsList" :index="index" @click="newsDetailClick(item)">
-					<div class="news-text">
-						{{item.title}}
-					</div>
-					<div class="news-time">
-						{{item.addtime}}
-					</div>
-				</div>
-			</div>
-		</div>
-		<el-dialog :visible.sync="newsVisible" title="公告信息" :append-to-body="true" width="60%">
-			<div style="width: 100%;text-align: center;font-size: 20px;color: #000;padding: 0 0 20px;font-weight: bold;">{{newsDetail.title}}</div>
-			<div style="width: 100%;">
-				<div class="ql-snow ql-editor" v-html="newsDetail.content"></div>
-			</div>
-		</el-dialog>
-	
-		<!-- echarts -->
-	</div>
-</template>
-<script>
-import 'animate.css'
-//0
-import router from '@/router/router-static'
-import * as echarts from 'echarts'
-export default {
-	data() {
-		return {
-			newsList: [],
-			newsDetail: {},
-			newsVisible: false,
-		};
-	},
-	mounted(){
-		this.init();
-		window.addEventListener('scroll', this.handleScroll)
-		setTimeout(()=>{
-			this.handleScroll()
-		},100)
-	},
-	computed: {
-		avatar(){
-			return this.$storage.get('headportrait')?this.$storage.get('headportrait'):''
-		},
-	},
-	methods:{
-		handleScroll() {
-			let arr = [
-				{id:'home-title',css:'animate__'},
-				{id:'news-box',css:'animate__'},
-			]
-			
-			for (let i in arr) {
-				let doc = document.getElementById(arr[i].id)
-				if (doc) {
-					let top = doc.offsetTop
-					let win_top = window.innerHeight + window.pageYOffset
-					// console.log(top,win_top)
-					if (win_top > top && doc.classList.value.indexOf(arr[i].css) < 0) {
-						// console.log(doc)
-						doc.classList.add(arr[i].css)
-					}
-				}
-			}
-		},
-		init(){
-			if(this.$storage.get('Token')){
-				this.$http({
-					url: `${this.$storage.get('sessionTable')}/session`,
-					method: "get"
-				}).then(({ data }) => {
-					if (data && data.code != 0) {
-						router.push({ name: 'login' })
-					}
-				});
-			}else{
-				router.push({ name: 'login' })
-			}
-			this.getNewsList()
-		},
-		getNewsList(){
-			let params = {
-				page: 1,
-				limit: 6,
-				sort: 'addtime',
-				order: 'desc',
-			}
+  <div class="home">
+    <el-card class="card" shadow="never" v-loading="loading">
+      <div class="title">个人信息</div>
 
-		},
-		newsDetailClick(row){
-			this.newsDetail = row
-			this.newsVisible = true
-		},
-	}
+      <div v-if="user" class="content">
+        <div class="welcome">
+          欢迎你，
+          <span class="strong">{{ user.username }}</span>
+          <span class="role">（{{ roleText(user.role) }}）</span>
+        </div>
+
+        <el-divider></el-divider>
+
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="用户ID">
+            {{ user.id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="用户名">
+            {{ user.username }}
+          </el-descriptions-item>
+          <el-descriptions-item label="邮箱">
+            {{ user.email || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="角色">
+            {{ roleText(user.role) }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div class="actions">
+          <el-button type="primary" @click="goUpdatePassword">
+            修改密码
+          </el-button>
+
+          <el-button @click="reload" :disabled="loading">
+            刷新
+          </el-button>
+
+          <el-button type="danger" @click="logout">
+            退出登录
+          </el-button>
+        </div>
+      </div>
+
+      <div v-else class="empty">
+        <div class="empty-text">未获取到用户信息</div>
+        <el-button type="danger" @click="logout">
+          返回登录页
+        </el-button>
+      </div>
+    </el-card>
+  </div>
+</template>
+
+<script>
+import router from "@/router/router-static";
+import http from "@/utils/http";
+
+export default {
+  name: "Home",
+  data() {
+    return {
+      loading: false,
+      user: null
+    };
+  },
+
+  mounted() {
+    this.init().catch(() => {});
+  },
+
+  computed: {
+    role() {
+      return (localStorage.getItem("Role") || "").trim().toUpperCase();
+    },
+    isAdmin() {
+      return this.role === "ADMIN" || this.role === "ROLE_ADMIN";
+    },
+    isTeacher() {
+      return this.role === "TEACHER" || this.role === "ROLE_TEACHER";
+    },
+    isStudent() {
+      return this.role === "STUDENT" || this.role === "ROLE_STUDENT";
+    }
+  },
+
+
+  methods: {
+    async init() {
+      const token = localStorage.getItem("Token");
+      if (!token) {
+        router.replace({ name: "login" });
+        return;
+      }
+      await this.fetchSession();
+    },
+
+    async fetchSession() {
+      this.loading = true;
+      try {
+        const res = await http({
+          url: "/api/session",
+          method: "GET"
+        });
+
+        const data = res && res.data ? res.data : null;
+        this.user = data;
+
+        // ✅ 关键：写入角色供菜单使用
+        if (data && data.role) {
+          localStorage.setItem("Role", data.role);
+        }
+
+      } catch (e) {
+        localStorage.removeItem("Token");
+        localStorage.removeItem("Role");
+        router.replace({ name: "login" });
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    reload() {
+      this.fetchSession().catch(() => {});
+    },
+
+    goUpdatePassword() {
+      router.push({ path: "/updatePassword" });
+    },
+
+    logout() {
+      localStorage.removeItem("Token");
+      localStorage.removeItem("Role");
+      this.user = null;
+      router.replace({ name: "login" });
+    },
+
+    roleText(role) {
+      const r = String(role || "").toUpperCase();
+      if (r === "ADMIN") return "管理员";
+      if (r === "TEACHER") return "教师";
+      if (r === "STUDENT") return "学生";
+      return role || "-";
+    }
+  }
 };
 </script>
-<style lang="scss" scoped>
-	.home-content {
-		padding: 10px 30px 40px;
-		align-content: flex-start;
-		background: url(http://codegen.caihongy.cn/20241213/1260e8d7b4d64512b62cbf10a93bf9cc.png) no-repeat center top / cover;
-		display: flex;
-		width: 100%;
-		min-height: 100vh;
-		justify-content: center;
-		align-items: flex-start;
-		flex-wrap: wrap;
-		.home-title {
-			border-radius: 5px;
-			padding: 10px 0;
-			box-shadow: 0 0px 0px rgba(0,0,0,.3);
-			margin: 10px 0;
-			background: none;
-			display: flex;
-			width: 100%;
-			justify-content: center;
-			align-items: center;
-			transition: 0.3s;
-			.titles {
-				padding: 0 0 0 12px;
-				color: #0977fd;
-				font-weight: 600;
-				font-size: 26px;
-				line-height: 44px;
-				span {
-				}
-			}
-		}
-		.home-title:hover {
-			transform: translate3d(0, 0px, 0);
-			z-index: 1;
-			background: rgba(255,255,255,.12);
-		}
-		.news-box {
-			border: 0px solid #ccc;
-			padding: 0;
-			margin: 10px;
-			display: block;
-			min-height: 526px;
-			transition: 0.3s;
-			border-radius: 10px;
-			box-shadow: 0 0px 0px rgba(0,0,0,.3);
-			flex-direction: column;
-			background: #fff;
-			flex: 1;
-			width: calc(30% - 20px);
-			justify-content: center;
-			align-items: center;
-			order: 2;
-			.news-title {
-				padding: 0 10px;
-				margin: 0 0 10px;
-				color: #fff;
-				font-weight: 600;
-				font-size: 16px;
-				border-color: #e6e6e6;
-				line-height: 60px;
-				border-radius: 10px 10px 0 0;
-				background: #0977fd;
-				width: 100%;
-				border-width: 0px;
-				border-style: solid;
-				text-align: center;
-			}
-			.news-list {
-				margin: 0 auto;
-				flex-direction: column;
-				display: flex;
-				width: 92%;
-				justify-content: space-between;
-				align-items: center;
-			}
-			.news-item {
-				border: 1px solid #eee;
-				cursor: pointer;
-				border-radius: 10px;
-				padding: 20px 10px;
-				margin: 0 0 10px;
-				display: flex;
-				width: 100%;
-				justify-content: space-between;
-				align-items: center;
-				.news-text {
-					overflow: hidden;
-					color: #000;
-					white-space: nowrap;
-					font-weight: 500;
-					width: 100%;
-					font-size: 15px;
-					text-overflow: ellipsis;
-				}
-				.news-time {
-					color: #999;
-					display: none;
-					font-size: 14px;
-				}
-			}
-		}
-		.news-box:hover {
-			transform: translate3d(0, 0px, 0);
-		}
-	}
-	
-	.echarts-flag-2 {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: space-between;
-		padding: 10px 20px;
-		background: rebeccapurple;
-	
-		&>div {
-			width: 32%;
-			height: 300px;
-			margin: 10px 0;
-			background: rgba(255,255,255,.1);
-			border-radius: 8px;
-			padding: 10px 20px;
-		}
-	}
-	.animate__animated {
-		animation-fill-mode: none;
-	}
+
+<style scoped>
+.home {
+  padding: 16px;
+}
+.card {
+  max-width: 820px;
+}
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.welcome {
+  font-size: 16px;
+  line-height: 24px;
+}
+.strong {
+  font-weight: 700;
+}
+.role {
+  color: #666;
+  margin-left: 6px;
+}
+.actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.empty-text {
+  margin-bottom: 12px;
+  color: #999;
+}
 </style>
